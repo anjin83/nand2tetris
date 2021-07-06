@@ -42,5 +42,26 @@ CHIP ALU {
         ng; // 1 if (out < 0),  0 otherwise
 
     PARTS:
-   // Put you code here:
+    //Set up nx and ny
+    Not16(in=x, out=notX); 
+    Not16(in=y, out=notY);
+    //Handle zx, nx, zy, ny bits
+    Mux4Way16(a=x, b=false, c=notX, d=true, sel[0]=zx, sel[1]=nx, out=outX);
+    Mux4Way16(a=y, b=false, c=notY, d=true, sel[0]=zy, sel[1]=ny, out=outY);
+    //Calculate all possible outputs for ALU
+    Add16(a=outX, b=outY, out=xAddY);
+    And16(a=outX, b=outY, out=xAndY);
+    Not16(in=xAddY, out=notXAddY);
+    Not16(in=xAndY, out=notXAndY);    
+    //Handle f and no bits
+    Mux4Way16(a=xAndY, b=notXAndY, c=xAddY, d=notXAddY, sel[0]=no, sel[1]=f, out[0..7]=outputLow, out[8..14]=outputHigh, out[15]=msb); //Necessary to split output bits as hdl does not allow sub-addressing of temp buses.
+    //Handle zr and ng output bits
+    Or8Way(in=outputLow, out=lowOr); //Check for 0
+    Or8Way(in[0..6]=outputHigh, in[7]=msb, out=highOr); //Check for 0
+    Or(a=lowOr, b=highOr, out=lowOrHigh);
+    Not(in=lowOrHigh, out=zr);
+    And(a=msb, b=true, out=ng); //Check for negative
+
+    //Output. Necessary to And as hdl does not allow 2 outputs from single gate.
+    And16(a[0..7]=outputLow, a[8..14]=outputHigh, a[15]=msb, b=true, out=out);
 }
